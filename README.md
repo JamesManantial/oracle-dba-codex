@@ -56,4 +56,5 @@ Cada script contiene un encabezado con:
 - Descripción
 - Prerrequisitos
 - Parámetros
+- Uso
 - Ejemplo de salidas

@@ -12,38 +12,59 @@ Descripción:
 
 Prerrequisitos:
     - Oracle Database 11g o superior
-    - Privilegios: DBA o SELECT_CATALOG_ROLE
+    - Privilegios: dba_segments y dba_users;
 
 Parámetros:
-    - Ninguno / o lista los parámetros si los tiene
 
-Ejemplo de salida:
-    TABLESPACE_NAME    USED_GB    FREE_GB    TOTAL_GB    PCT_USED
-    ---------------    -------    -------    --------    --------
-    USERS                 2.5        7.5        10.0          25%
+Uso:
+Para cargar data de storage
+execute EDBATOOLS.pkg_mante_dba.carga;
+Para visualizar crecimiento:
+variable rc refcursor;
+exec EDBATOOLS.pkg_crecimiento.repo_diario(sysdate-1,sysdate,'X',:rc);
+print rc;
+
+Ejemplo de salida- Reporte por Objeto
+    OWNER     SEGMENT_NAME    SEGMENT_TYPE    CRECI_GB    FINAL   INICIAL    %
+    --------- ------------    ------------    -------    --------  -------- -----
+    EDBATOOLS TABLA1           TABLE             2.5        4.5     2.0       125%
 
 Historial de cambios:
     1.0 | 2026-03-30 | Jaime Sanchez | 1.0
 =============================================================================
 */
 --1. Creamos el schema edbatools
-create tablespace EDBATOOLS_MDT
-create user edbatools identified by
----Primero creamos las tablas necesarias para el analisis de crecimiento
+create tablespace EDBATOOLS_MDT;
+create user edbatools identified by password;
+--Brindamos accesos a la dba_segments
+grant select on dba_segments to edbatools;
+grant select on dba_users to edbatools;
+--Brindamos privilegios sobre el tablespace
+alter user edbatools quota unlimited on EDBATOOLS_MDT;
+--Creamos secuencia
+CREATE SEQUENCE EDBATOOLS.S_SEGMENTO
+  START WITH 62469
+  MAXVALUE 999999999999999999999999999
+  MINVALUE 1
+  NOCYCLE
+  CACHE 20
+  NOORDER;
+
+---Creamos las tablas necesarias para el analisis de crecimiento
 CREATE TABLE EDBATOOLS.DSEGMENTOS
 (
   ID               NUMBER,
   FECHA            DATE,
-  TIPO             VARCHAR2(1 BYTE),
-  OWNER            VARCHAR2(30 BYTE),
-  SEGMENT_NAME     VARCHAR2(100 BYTE),
-  PARTITION_NAME   VARCHAR2(30 BYTE),
-  SEGMENT_TYPE     VARCHAR2(18 BYTE),
-  TABLESPACE_NAME  VARCHAR2(40 BYTE),
+  TIPO             VARCHAR2(1),
+  OWNER            VARCHAR2(30),
+  SEGMENT_NAME     VARCHAR2(100),
+  PARTITION_NAME   VARCHAR2(64),
+  SEGMENT_TYPE     VARCHAR2(18),
+  TABLESPACE_NAME  VARCHAR2(40),
   MB               NUMBER,
   EXTENTS          NUMBER
 )
-TABLESPACE EDBATOOLS_MDT
+TABLESPACE EDBATOOLS_MDT;
 
 ---Creamos el store procedure para el analisis
 CREATE OR REPLACE PACKAGE EDBATOOLS.pkg_crecimiento
@@ -173,9 +194,30 @@ CREATE OR REPLACE PACKAGE EDBATOOLS.pkg_mante_dba
 is
   procedure data_segmentos(ptipo varchar2);
   procedure carga;
-  procedure acciona(ptipo varchar2,paccion varchar2);
-  function gsecuencia(ptipo varchar2) return number;
-  procedure log(pflag number,pid number,pacciont varchar2,ptipo varchar2,paccion varchar2,pestado varchar2,pmensaje varchar2,pobjeto varchar2 );
+end;
+/
+
+CREATE OR REPLACE PACKAGE BODY EDBATOOLS.pkg_mante_dba
+is
+
+procedure data_segmentos(ptipo varchar2) as
+  VID NUMBER;
+begin
+  select S_SEGMENTO.NEXTVAL INTO vid from dual;
+
+
+  INSERT INTO edbatools.DSEGMENTOS(ID,FECHA,TIPO,OWNER,SEGMENT_NAME,PARTITION_NAME,SEGMENT_TYPE,
+  TABLESPACE_NAME,MB,EXTENTS)
+  select VID,SYSDATE,PTIPO,OWNER,SEGMENT_NAME,PARTITION_NAME,SEGMENT_TYPE,TABLESPACE_NAME,BYTES/1024/1024,EXTENTS
+  from dba_segments
+  where owner not in (select username from dba_users where oracle_maintained='YES');
+  commit;
+end;
+
+procedure carga as
+begin
+PKG_MANTE_DBA.DATA_SEGMENTOS('B');
+end;
 end;
 /
 
