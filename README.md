@@ -58,3 +58,10 @@ Cada script contiene un encabezado con:
 - Parámetros
 - Uso
 - Ejemplo de salidas
+
+## 📦 Inventario de Scripts
+
+| Script                 | Descripción                                      | Versión | Fecha creación | Última actualización |
+|----------------------|--------------------------------------------------|--------|---------------- |----------------------|
+| adm_001_storage_monitor_storage_growth.sql  | Reporte de crecimiento Storage  | 1.0   | 2026-03-30  | 2026-03-30  |
+| adm_002_security_controlar_accesos.sql  | Controla acceesos de usuarios en el login  | 1.0  | 2026-04-04  | 2026-04-04  |
